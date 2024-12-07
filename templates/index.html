@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truth Tap</title>
+    <style>
+        body {
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #cde6ff;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            color: #0b1e5e;
+        }
+
+        .mypage-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #fafcff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .mypage-link img {
+            width: 24px;
+            height: 24px;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            height: calc(100vh - 100px);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            font-size: 1.2rem;
+            padding: 12px;
+            width: 200%;
+            max-width: 900px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 30px;
+            background-color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            font-size: 1.2rem;
+            padding: 12px 20px;
+            background-color: #7aa4d0;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #4471a0;
+        }
+
+        .score-section {
+            margin-top: 20px;
+            color: #5d544d;
+        }
+
+        .score {
+            font-size: 2rem;
+            font-weight: bold;
+            padding: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 90%;
+            max-width: 800px;
+            margin-top: 30px;
+        }
+
+        .summary, .recommendation {
+            font-size: 1rem;
+            color: #5d544d;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid #b0b0b0;
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            font-weight: normal;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .summary:hover, .recommendation:hover {
+            background-color: #b0b0b0;
+            color: white;
+        }
+
+        .summary-content {
+            display: none;
+            margin-top: 10px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-height: 150px;
+            overflow-y: auto;
+            width: 70%;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Truth Tap</h1>
+        <div class="mypage-link" onclick="location.href='mypage.html'">
+            <img src="user-icon.png" alt="마이페이지">
+        </div>
+    </header>
+    <main>
+        <div class="input-section">
+            <input type="text" id="urlInput" placeholder="Enter article URL here">
+            <button onclick="checkCredibility()">Check Credibility</button>
+        </div>
+        <div class="score-section">
+            <div id="credibilityScore" class="score">Credibility Score: 0%</div>
+        </div>
+        <div class="action-row">
+            <div class="summary" onclick="toggleSummary()">요약 내용 보기 ▼</div>
+            <div class="recommendation" onclick="window.open('detect-recommend.html', '_blank')">추천기사 보러가기</div>
+        </div>
+        <div class="summary-content" id="summaryContent">
+            <p>요약된 기사 내용이 여기에 표시됩니다...</p>
+        </div>
+    </main>
+
+    <script>
+        async function checkCredibility() {
+            const urlInput = document.getElementById('urlInput').value;
+
+            if (!urlInput) {
+                alert('Please enter a URL.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/check-credibility/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ url: urlInput }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to check credibility.');
+                }
+
+                const data = await response.json();
+                const credibilityScore = data.credibility_score || 0;
+                const summary = data.summary || '';
+
+                const scoreElement = document.getElementById('credibilityScore');
+                scoreElement.innerText = `Credibility Score: ${credibilityScore}%`;
+
+                if (summary) {
+                    const summaryContent = document.getElementById('summaryContent');
+                    summaryContent.innerHTML = `<p>${summary}</p>`;
+                }
+
+                if (credibilityScore > 70) {
+                    scoreElement.style.color = 'green';
+                } else if (credibilityScore > 40) {
+                    scoreElement.style.color = 'orange';
+                } else {
+                    scoreElement.style.color = 'red';
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        function toggleSummary() {
+            const content = document.getElementById('summaryContent');
+            content.style.display = content.style.display === "none" || content.style.display === "" ? "block" : "none";
+            const summaryText = document.querySelector('.summary');
+            summaryText.innerText = content.style.display === "block" ? "요약 내용 숨기기 ▲" : "요약 내용 보기 ▼";
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
